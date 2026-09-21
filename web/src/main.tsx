@@ -8,6 +8,7 @@ import { Browse, Home, SignIn, Welcome } from './home.tsx'
 import { Keyword, KeywordIndex } from './keywords.tsx'
 import './index.css'
 import { Inbox, Review, Scan } from './scan.tsx'
+import { ScriptureBook, ScriptureIndex } from './scripture.tsx'
 import { Settings } from './settings.tsx'
 
 function App() {
@@ -36,6 +37,8 @@ function App() {
         <Route path="/inbox/:id" element={<Review vault={vault} />} />
         <Route path="/keywords" element={<KeywordIndex />} />
         <Route path="/keywords/:word" element={<Keyword vault={vault} />} />
+        <Route path="/scripture" element={<ScriptureIndex />} />
+        <Route path="/scripture/:book" element={<ScriptureBook vault={vault} />} />
         <Route path="/browse/:key" element={<Browse vault={vault} />} />
         <Route path="/settings" element={<Settings vault={vault} me={me} />} />
         <Route path="*" element={<Home vault={vault} />} />

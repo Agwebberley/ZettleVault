@@ -5,6 +5,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",
     "@hono/node-server": "^2.1.1",
+    "bible-passage-reference-parser": "^4.0.0",
     "hono": "^4.13.8",
     "openid-client": "^6.8.8",
     "postgres": "^3.4.9",

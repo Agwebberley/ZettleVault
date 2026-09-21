@@ -13,6 +13,7 @@ import { dbErrorResponse } from './http.ts'
 import { keywords } from './keywords.ts'
 import type { AuthEnv } from './http.ts'
 import { scans } from './scans.ts'
+import { scripture } from './scripture.ts'
 import { vault } from './vault.ts'
 
 const origin = new URL(env('PUBLIC_URL')).origin
@@ -114,6 +115,7 @@ app.post('/api/logout-all', async (c) => {
 app.route('/api', vault)
 app.route('/api', exportRoutes)
 app.route('/api', keywords) // before cards: /cards/:id/marks
+app.route('/api', scripture) // likewise: /cards/:id/scripture
 app.route('/api', scans) // before cards: /cards/:id/confirm and /photos must not fall into /cards/:id
 app.route('/api', cards)
 app.all('/api/*', (c) => c.json({ error: 'not found' }, 404))

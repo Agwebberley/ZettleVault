@@ -11,6 +11,7 @@ import type { AuthEnv } from './http.ts'
 import { syncKeywords } from './keywords.ts'
 import { photoPath, removePhotos, storePhoto } from './photos.ts'
 import { claudeScanner, toDraft } from './scan.ts'
+import { syncScripture } from './scripture.ts'
 import type { Scanner, VaultConfig } from './scan.ts'
 import { loadFields } from './vault.ts'
 
@@ -103,6 +104,7 @@ scans.post('/cards/:id/confirm', async (c) => {
       where id = ${c.req.param('id')} and status = 'needs_review' returning ${cardCols(tx)}`
     if (row) await saveLinks(tx, row as Card, input.links)
     if (row) await syncKeywords(tx, row as Card)
+    if (row) await syncScripture(tx, row as Card)
     return row
   })
   return card ? c.json(card) : fail(404, 'no draft with that id is waiting for review')

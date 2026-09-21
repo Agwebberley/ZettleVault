@@ -7,6 +7,7 @@ import type { Vault } from './api.ts'
 import { CardForm } from './card-form.tsx'
 import { CardKeywords, MarkedText, toggleMark, useMarks } from './keywords.tsx'
 import { LinkLists, useLinks } from './links.tsx'
+import { CardScripture } from './scripture.tsx'
 import { Button, CardRow, Empty, LinkButton, Page, Photos, inputClass } from './ui.tsx'
 
 export function CardList({ vault }: { vault: Vault }) {
@@ -108,6 +109,7 @@ export function CardDetail({ vault }: { vault: Vault }) {
         <Empty>No card text.</Empty>
       )}
       {card.transcription && <CardKeywords marks={marks} />}
+      <CardScripture cardId={card.id} vault={vault} />
       {linked && <LinkLists data={linked} fmt={idFormat(vault)} />}
     </Page>
   )

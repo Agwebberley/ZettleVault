@@ -1,11 +1,12 @@
 // Vault configuration: settings, card types, field definitions, starter templates.
 import { Hono } from 'hono'
 import { FieldInput, FieldPatch, SettingsPatch, TEMPLATES, TypeInput, TypePatch, keyOf, labelClash } from '../../shared/fields.ts'
-import type { FieldDef } from '../../shared/fields.ts'
+import type { Card, FieldDef } from '../../shared/fields.ts'
 import { sql, withUser } from './db.ts'
 import type { Tx } from './db.ts'
 import { fail, parse } from './http.ts'
 import type { AuthEnv } from './http.ts'
+import { syncScripture } from './scripture.ts'
 
 export const vault = new Hono<AuthEnv>()
 
@@ -31,6 +32,10 @@ vault.get('/vault', async (c) => {
 vault.patch('/settings', async (c) => {
   const patch = await parse(c, SettingsPatch)
   if (Object.keys(patch).length) await sql`update users set ${sql(patch)} where id = ${c.get('userId')}`
+  if (patch.bible_mode !== undefined)
+    await withUser(c.get('userId'), async (tx) => {
+      for (const card of await tx<Pick<Card, 'id' | 'meta' | 'transcription'>[]>`select id, meta, transcription from cards`) await syncScripture(tx, card)
+    })
   return c.json({ ok: true })
 })
 

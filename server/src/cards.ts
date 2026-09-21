@@ -7,6 +7,7 @@ import { fail, parse } from './http.ts'
 import type { AuthEnv } from './http.ts'
 import { syncKeywords } from './keywords.ts'
 import { removePhotos } from './photos.ts'
+import { syncScripture } from './scripture.ts'
 import { loadFields } from './vault.ts'
 
 export const cards = new Hono<AuthEnv>()
@@ -94,6 +95,7 @@ cards.post('/cards', async (c) => {
       returning ${cardCols(tx)}`
     await saveLinks(tx, row as Card, input.links)
     await syncKeywords(tx, row as Card)
+    await syncScripture(tx, row as Card)
     return row
   })
   return c.json(card, 201)
@@ -131,6 +133,7 @@ cards.patch('/cards/:id', async (c) => {
       : await tx`select ${cardCols(tx)} from cards where id = ${c.req.param('id')}`
     if (!row) return null
     await saveLinks(tx, row as Card, links)
+    await syncScripture(tx, row as Card)
     return { ...row, marks_dropped: await syncKeywords(tx, row as Card) }
   })
   return card ? c.json(card) : fail(404, 'not found')
