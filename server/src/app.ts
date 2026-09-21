@@ -1,11 +1,16 @@
 import { Hono } from 'hono'
+import { HTTPException } from 'hono/http-exception'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { secureHeaders } from 'hono/secure-headers'
 import { serveStatic } from '@hono/node-server/serve-static'
 import * as oidc from 'openid-client'
 import { SESSION_DAYS, sessionUser, signIn, signOut, signOutEverywhere } from './auth.ts'
+import { cards } from './cards.ts'
 import { sql } from './db.ts'
 import { env } from './env.ts'
+import { dbErrorResponse } from './http.ts'
+import type { AuthEnv } from './http.ts'
+import { vault } from './vault.ts'
 
 const origin = new URL(env('PUBLIC_URL')).origin
 const cookie = { httpOnly: true, secure: origin.startsWith('https:'), sameSite: 'Lax', path: '/' } as const
@@ -20,7 +25,7 @@ const googleConfig = () =>
       throw e
     }))
 
-export const app = new Hono<{ Variables: { userId: string; token: string } }>()
+export const app = new Hono<AuthEnv>()
 
 app.use(secureHeaders())
 
@@ -103,6 +108,8 @@ app.post('/api/logout-all', async (c) => {
   return c.json({ ok: true })
 })
 
+app.route('/api', vault)
+app.route('/api', cards)
 app.all('/api/*', (c) => c.json({ error: 'not found' }, 404))
 
 // The built SPA; unknown paths fall through to index.html for client-side routing.
@@ -110,6 +117,9 @@ app.use(serveStatic({ root: './web/dist' }))
 app.get('*', serveStatic({ path: './web/dist/index.html' }))
 
 app.onError((e, c) => {
+  if (e instanceof HTTPException) return e.getResponse()
+  const known = dbErrorResponse(e)
+  if (known) return known
   console.error(e)
   return c.json({ error: 'internal error' }, 500)
 })

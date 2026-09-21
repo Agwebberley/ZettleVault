@@ -4,6 +4,7 @@ COPY package.json package-lock.json ./
 COPY server/package.json server/
 COPY web/package.json web/
 RUN npm ci
+COPY shared shared
 COPY web web
 RUN npm run build -w web
 
@@ -15,6 +16,7 @@ COPY package.json package-lock.json ./
 COPY server/package.json server/
 COPY web/package.json web/
 RUN npm ci --omit=dev -w server
+COPY shared shared
 COPY server/src server/src
 COPY migrations migrations
 COPY --from=web /app/web/dist web/dist
