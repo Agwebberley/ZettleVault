@@ -43,15 +43,18 @@ const pruneOrphans = async (tx: Tx) => tx`
   delete from keywords k
   where k.notes is null and k.short_note is null
     and not exists (select 1 from keyword_marks m where m.keyword_id = k.id)
+    and not exists (select 1 from keyword_strongs p where p.keyword_id = k.id)
     and not exists (select 1 from (${usage(tx, await tagKeys(tx))}) u where u.word = k.word::text)`
 
 export const keywords = new Hono<AuthEnv>()
 
 keywords.get('/keywords', async (c) => {
   const rows = await withUser(c.get('userId'), async (tx) => tx`
-    select k.word, k.short_note, count(u.card_id)::int as count
+    select k.word, count(u.card_id)::int as count,
+           coalesce(k.short_note, (select s.kjv_def from keyword_strongs p join strongs_entries s on s.id = p.strongs_id
+                                   where p.keyword_id = k.id order by p.created_at limit 1)) as short_note
     from keywords k left join (${usage(tx, await tagKeys(tx))}) u on u.word = k.word::text
-    group by k.word, k.short_note order by k.word`)
+    group by k.id, k.word, k.short_note order by k.word`)
   return c.json(rows)
 })
 
@@ -76,7 +79,14 @@ keywords.get('/keywords/:word', async (c) => {
       left join keyword_marks m on m.card_id = c.id and m.keyword_id = k.id
       where u.word = ${word}
       group by c.id order by bool_or(coalesce(m.is_definition, false)) desc, c.number`
+    const strongs = await tx`
+      select s.id, s.lang, s.lemma, s.translit, s.definition, s.kjv_def
+      from keyword_strongs p join keywords k on k.id = p.keyword_id join strongs_entries s on s.id = p.strongs_id
+      where k.word = ${word} order by p.created_at`
+    const [webster] = await tx`select definition from webster_1828 where word = ${word}`
     return {
+      strongs,
+      webster: webster?.definition ?? null,
       keyword: keyword ?? { word, short_note: null, notes: null },
       cards: cards.map((card) => ({
         number: card.number,
@@ -113,6 +123,35 @@ keywords.get('/cards/:id/marks', async (c) => {
   const rows = await withUser(c.get('userId'), (tx) => tx`
     select id, start_offset as start, end_offset as end, label, is_definition from keyword_marks where card_id = ${c.req.param('id')} order by start_offset`)
   return c.json(rows)
+})
+
+// Candidates for a keyword's original-language words: Strong's entries whose KJV glosses use the word.
+// The user picks; nothing is guessed on their behalf.
+keywords.get('/reference/strongs', async (c) => {
+  const q = (c.req.query('q') ?? '').trim()
+  if (!q) return c.json([])
+  const rows = await withUser(c.get('userId'), (tx) => tx`
+    select id, lang, lemma, translit, definition, kjv_def
+    from strongs_entries where search @@ plainto_tsquery('english', ${q})
+    -- entries that render the word itself come before those that only share its stem ("righteous judgment")
+    order by position(lower(${q}) in lower(coalesce(kjv_def, ''))) > 0 desc,
+             ts_rank(search, plainto_tsquery('english', ${q})) desc, lang, id limit 30`)
+  return c.json(rows)
+})
+
+keywords.put('/keywords/:word/strongs', async (c) => {
+  const word = c.req.param('word').trim().toLowerCase()
+  const { ids } = await parse(c, z.strictObject({ ids: z.array(z.string().regex(/^[GH][0-9]{1,4}$/)).max(20) }))
+  await withUser(c.get('userId'), async (tx) => {
+    const [k] = await tx`
+      insert into keywords (word) values (${word})
+      on conflict (user_id, word) do update set word = excluded.word returning id`
+    await tx`delete from keyword_strongs where keyword_id = ${k.id} and strongs_id <> all(${ids})`
+    if (ids.length) await tx`
+      insert into keyword_strongs ${tx(ids.map((strongs_id) => ({ keyword_id: k.id, strongs_id })))}
+      on conflict (keyword_id, strongs_id) do nothing`
+  })
+  return c.json({ ok: true })
 })
 
 // ★ "this card defines the term"

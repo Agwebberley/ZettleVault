@@ -35,6 +35,9 @@ with the `own_rows` policy (copy the loop at the bottom of `001_init.sql`); a te
    and `RCLONE_REMOTE` (e.g. `b2:zettlevault-backups`, after `rclone config`).
 4. `scripts/deploy.sh` (first run too: it creates `data/photos` with the right owner) — Caddy gets the certificate on first request.
 5. Invite yourself: `docker compose run --rm migrate node server/src/invite.ts you@gmail.com`
+   Load the reference data once (Strong's + Webster 1828, ~25 MB download, pinned to inspected commits):
+   `docker compose run --rm migrate node server/src/load-reference.ts` — locally: `npm run load-reference`.
+   Keyword pages work without it; they just show no original words or dictionary entry.
 6. Cron (`crontab -e`): `0 3 * * * /home/ubuntu/ZettleVault/scripts/backup.sh >> /home/ubuntu/backup.log 2>&1`
    Set `HEALTHCHECK_URL` to a healthchecks.io check so a *missing* backup alerts you.
    An external uptime check on `https://<domain>/healthz` doubles as keep-alive against idle reclamation.

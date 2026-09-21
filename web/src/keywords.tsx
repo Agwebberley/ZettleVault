@@ -100,7 +100,70 @@ export function KeywordIndex() {
   )
 }
 
+type Strongs = { id: string; lang: 'greek' | 'hebrew'; lemma: string; translit: string | null; definition: string | null; kjv_def: string | null }
+
+function StrongsEntry({ entry, action }: { entry: Strongs; action: { label: string; run: () => void } }) {
+  return (
+    <li className="rounded-xl border border-line bg-card p-3 text-sm">
+      <div className="flex items-baseline gap-2">
+        <span lang={entry.lang === 'greek' ? 'grc' : 'he'} dir={entry.lang === 'hebrew' ? 'rtl' : undefined} className="font-serif text-xl">{entry.lemma}</span>
+        <span className="italic text-muted">{entry.translit}</span>
+        <a className="ml-auto font-mono text-amber underline" target="_blank" rel="noreferrer"
+          href={`https://www.blueletterbible.org/lang/lexicon/lexicon.cfm?Strongs=${entry.id}&t=lsb`}>{entry.id}</a>
+      </div>
+      <p className="mt-1">{entry.definition}</p>
+      <p className="mt-1 text-muted">KJV: {entry.kjv_def}</p>
+      <Button variant="plain" className="mt-2" onClick={action.run}>{action.label}</Button>
+    </li>
+  )
+}
+
+// The user looks through real Strong's entries and pins the ones that apply. Nothing is guessed for them.
+function OriginalWords({ word, pinned }: { word: string; pinned: Strongs[] }) {
+  const [query, setQuery] = useState<string | null>(null)
+  const { data: found } = useQuery({
+    queryKey: ['strongs', query], queryFn: () => api<Strongs[]>(`/reference/strongs?q=${encodeURIComponent(query!)}`), enabled: !!query,
+  })
+  const setPins = (ids: string[]) => act(`/keywords/${encodeURIComponent(word)}/strongs`, 'PUT', { ids })
+  const candidates = found?.filter((f) => !pinned.some((p) => p.id === f.id))
+  return (
+    <section>
+      <h2 className="mb-2 text-xl font-semibold">Original words</h2>
+      <ul className="space-y-2">
+        {pinned.map((e) => <StrongsEntry key={e.id} entry={e} action={{ label: 'Remove', run: () => setPins(pinned.filter((p) => p.id !== e.id).map((p) => p.id)) }} />)}
+      </ul>
+      <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); setQuery(new FormData(e.currentTarget).get('q') as string) }}>
+        <input name="q" key={word} className={inputClass} defaultValue={word} aria-label="English word to look for in Strong’s" />
+        <Button type="submit" variant="plain">Find</Button>
+      </form>
+      {candidates && (
+        <ul className="mt-3 space-y-2">
+          {candidates.map((e) => <StrongsEntry key={e.id} entry={e} action={{ label: 'Pin to this keyword', run: () => setPins([...pinned.map((p) => p.id), e.id]) }} />)}
+          {candidates.length === 0 && <li className="text-sm text-muted">No {pinned.length ? 'further ' : ''}entries use “{query}” in their KJV renderings.</li>}
+        </ul>
+      )}
+      <p className="mt-2 text-xs text-muted">Strong’s dictionaries via Open Scriptures (CC-BY-SA). Each number opens its Blue Letter Bible entry.</p>
+    </section>
+  )
+}
+
+function Webster({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  const long = text.length > 700
+  return (
+    <section>
+      <h2 className="mb-2 text-xl font-semibold">Webster, 1828</h2>
+      <p className="whitespace-pre-wrap rounded-2xl border border-line bg-card p-4 font-serif text-sm leading-relaxed">
+        {open || !long ? text : `${text.slice(0, 600).trimEnd()}…`}
+      </p>
+      {long && <Button variant="plain" className="mt-2" onClick={() => setOpen(!open)}>{open ? 'Show less' : 'Show the whole entry'}</Button>}
+    </section>
+  )
+}
+
 type KeywordPage = {
+  strongs: Strongs[]
+  webster: string | null
   keyword: { word: string; short_note: string | null; notes: string | null }
   cards: { number: number; title: string | null; excerpts: { mark_id: string; is_definition: boolean; text: string }[] }[]
 }
@@ -161,6 +224,9 @@ export function Keyword({ vault }: { vault: Vault }) {
           </ul>
           {data.cards.length === 0 && <Empty>No card uses this keyword yet.</Empty>}
         </section>
+
+        {vault.settings.bible_mode && <OriginalWords word={data.keyword.word} pinned={data.strongs} />}
+        {data.webster && <Webster text={data.webster} />}
 
         <section>
           <h2 className="mb-2 text-xl font-semibold">Look it up</h2>
