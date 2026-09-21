@@ -6,7 +6,7 @@ import { sql, withUser } from './db.ts'
 import type { Tx } from './db.ts'
 import { fail, parse } from './http.ts'
 import type { AuthEnv } from './http.ts'
-import { syncScripture } from './scripture.ts'
+import { syncScripture, writeRefs } from './scripture.ts'
 
 export const vault = new Hono<AuthEnv>()
 
@@ -35,6 +35,7 @@ vault.patch('/settings', async (c) => {
   if (patch.bible_mode !== undefined)
     await withUser(c.get('userId'), async (tx) => {
       for (const card of await tx<Pick<Card, 'id' | 'meta' | 'transcription'>[]>`select id, meta, transcription from cards`) await syncScripture(tx, card)
+      for (const d of await tx`select id, scripture, content from devotions`) await writeRefs(tx, { devotion_id: d.id }, d.scripture ? [d.scripture] : [], d.content ?? '')
     })
   return c.json({ ok: true })
 })

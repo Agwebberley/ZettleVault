@@ -30,22 +30,28 @@ export function findScripture(text: string, where: 'field' | 'text'): Found[] {
   return found.length || where === 'text' ? found : [{ raw: text.trim(), ref: null }]
 }
 
-// Rewrites one card's references. Skipped entirely for vaults without Bible mode.
-export async function syncScripture(tx: Tx, card: Pick<Card, 'id' | 'meta' | 'transcription'>) {
+type RefOwner = { card_id: string } | { devotion_id: string }
+
+// Rewrites the references of one card or devotion. Nothing is indexed for vaults without Bible mode.
+export async function writeRefs(tx: Tx, owner: RefOwner, fieldValues: string[], text: string) {
+  await tx`delete from scripture_refs where ${'card_id' in owner ? tx`card_id = ${owner.card_id}` : tx`devotion_id = ${owner.devotion_id}`}`
   const [user] = await tx`select bible_mode from users where id = app_user_id()`
-  await tx`delete from scripture_refs where card_id = ${card.id}`
   if (!user?.bible_mode) return
-  const keys = (await loadFields(tx)).filter((f) => f.kind === 'scripture').map((f) => f.key)
-  const fromFields = keys.flatMap((k) => (Array.isArray(card.meta[k]) ? (card.meta[k] as string[]) : [])).flatMap((v) => findScripture(v, 'field'))
   const rows = [
-    ...fromFields.map((f) => ({ ...f, source: 'field' })),
-    ...findScripture(card.transcription ?? '', 'text').map((f) => ({ ...f, source: 'text' })),
+    ...fieldValues.flatMap((v) => findScripture(v, 'field')).map((f) => ({ ...f, source: 'field' })),
+    ...findScripture(text, 'text').map((f) => ({ ...f, source: 'text' })),
   ].slice(0, 300)
   if (rows.length)
     await tx`insert into scripture_refs ${tx(rows.map(({ raw, ref, source }) => ({
-      card_id: card.id, source, raw: raw.slice(0, 200), book: ref?.book ?? null, book_order: ref ? bookOrder(ref.book) : null,
+      ...owner, source, raw: raw.slice(0, 200), book: ref?.book ?? null, book_order: ref ? bookOrder(ref.book) : null,
       chapter_start: ref?.chapter_start ?? null, verse_start: ref?.verse_start ?? null, chapter_end: ref?.chapter_end ?? null, verse_end: ref?.verse_end ?? null,
     })))}`
+}
+
+export async function syncScripture(tx: Tx, card: Pick<Card, 'id' | 'meta' | 'transcription'>) {
+  const keys = (await loadFields(tx)).filter((f) => f.kind === 'scripture').map((f) => f.key)
+  const values = keys.flatMap((key) => (Array.isArray(card.meta[key]) ? (card.meta[key] as string[]) : []))
+  await writeRefs(tx, { card_id: card.id }, values, card.transcription ?? '')
 }
 
 export const scripture = new Hono<AuthEnv>()
@@ -53,9 +59,9 @@ export const scripture = new Hono<AuthEnv>()
 // Books that have anything, in canonical order.
 scripture.get('/scripture', async (c) => {
   const rows = await withUser(c.get('userId'), (tx) => tx`
-    select r.book, count(distinct r.card_id)::int as count
-    from scripture_refs r join cards c on c.id = r.card_id and c.status = 'saved'
-    where r.book is not null group by r.book, r.book_order order by r.book_order`)
+    select r.book, count(distinct coalesce(r.card_id, r.devotion_id))::int as count
+    from scripture_refs r left join cards c on c.id = r.card_id
+    where r.book is not null and (r.devotion_id is not null or c.status = 'saved') group by r.book, r.book_order order by r.book_order`)
   return c.json(rows)
 })
 
@@ -63,16 +69,16 @@ scripture.get('/scripture', async (c) => {
 scripture.get('/scripture/:book', async (c) => {
   const book = c.req.param('book')
   if (bookOrder(book) < 0) fail(404, 'not a book')
-  const rows = await withUser(c.get('userId'), (tx) => tx<(Ref & { number: number; title: string | null; chapter: number | null })[]>`
-    select ch as chapter, c.number, c.title, r.book, r.chapter_start, r.verse_start, r.chapter_end, r.verse_end
-    from scripture_refs r join cards c on c.id = r.card_id and c.status = 'saved'
+  const rows = await withUser(c.get('userId'), (tx) => tx<(Ref & { number: number | null; devotion_id: string | null; title: string | null; chapter: number | null })[]>`
+    select ch as chapter, c.number, r.devotion_id, coalesce(c.title, 'Devotion, ' || d.date::text) as title, r.book, r.chapter_start, r.verse_start, r.chapter_end, r.verse_end
+    from scripture_refs r left join cards c on c.id = r.card_id left join devotions d on d.id = r.devotion_id
     left join lateral generate_series(r.chapter_start::int, coalesce(r.chapter_end, r.chapter_start)::int) ch on r.chapter_start is not null
-    where r.book = ${book}
+    where r.book = ${book} and (r.devotion_id is not null or c.status = 'saved')
     order by ch nulls first, r.verse_start nulls first, c.number`)
-  const byChapter = new Map<number | null, { number: number; title: string | null; refs: string[] }[]>()
+  const byChapter = new Map<number | null, { number: number | null; devotion_id: string | null; title: string | null; refs: string[] }[]>()
   for (const row of rows) {
     const cards = byChapter.get(row.chapter) ?? byChapter.set(row.chapter, []).get(row.chapter)!
-    const card = cards.find((x) => x.number === row.number) ?? cards[cards.push({ number: row.number, title: row.title, refs: [] }) - 1]
+    const card = cards.find((x) => x.number === row.number && x.devotion_id === row.devotion_id) ?? cards[cards.push({ number: row.number, devotion_id: row.devotion_id, title: row.title, refs: [] }) - 1]
     const label = refLabel(row)
     if (!card.refs.includes(label)) card.refs.push(label)
   }

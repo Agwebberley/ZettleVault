@@ -9,6 +9,7 @@ import { cards } from './cards.ts'
 import { sql } from './db.ts'
 import { env } from './env.ts'
 import { exportRoutes } from './export.ts'
+import { devotions } from './devotions.ts'
 import { dbErrorResponse } from './http.ts'
 import { keywords } from './keywords.ts'
 import type { AuthEnv } from './http.ts'
@@ -113,6 +114,7 @@ app.post('/api/logout-all', async (c) => {
 })
 
 app.route('/api', vault)
+app.route('/api', devotions)
 app.route('/api', exportRoutes)
 app.route('/api', keywords) // before cards: /cards/:id/marks
 app.route('/api', scripture) // likewise: /cards/:id/scripture
