@@ -5,6 +5,7 @@ import { BrowserRouter, NavLink, Route, Routes } from 'react-router'
 import { queryClient, useMe, useVault } from './api.ts'
 import { CardDetail, CardList, EditCard, NewCard } from './cards.tsx'
 import { Browse, Home, SignIn, Welcome } from './home.tsx'
+import { Keyword, KeywordIndex } from './keywords.tsx'
 import './index.css'
 import { Inbox, Review, Scan } from './scan.tsx'
 import { Settings } from './settings.tsx'
@@ -21,7 +22,7 @@ function App() {
     return <Welcome onDone={() => { localStorage.setItem('welcomed', '1'); setWelcomed(true) }} />
 
   const tab = ({ isActive }: { isActive: boolean }) =>
-    `rounded-lg px-4 py-2 text-sm ${isActive ? 'bg-forest text-white' : 'text-muted hover:text-ink'}`
+    `rounded-lg px-2.5 py-2 text-sm sm:px-4 ${isActive ? 'bg-forest text-white' : 'text-muted hover:text-ink'}`
   return (
     <div className="pb-24">
       <Routes>
@@ -33,6 +34,8 @@ function App() {
         <Route path="/scan" element={<Scan />} />
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/inbox/:id" element={<Review vault={vault} />} />
+        <Route path="/keywords" element={<KeywordIndex />} />
+        <Route path="/keywords/:word" element={<Keyword vault={vault} />} />
         <Route path="/browse/:key" element={<Browse vault={vault} />} />
         <Route path="/settings" element={<Settings vault={vault} me={me} />} />
         <Route path="*" element={<Home vault={vault} />} />
@@ -42,6 +45,7 @@ function App() {
         <NavLink to="/scan" className={tab}>Scan</NavLink>
         <NavLink to="/inbox" className={tab}>Inbox</NavLink>
         <NavLink to="/cards" className={tab}>Cards</NavLink>
+        <NavLink to="/keywords" className={tab}>Keywords</NavLink>
         <NavLink to="/settings" className={tab}>Settings</NavLink>
       </nav>
     </div>

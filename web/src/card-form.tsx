@@ -99,6 +99,8 @@ export function CardForm({ vault, card }: { vault: Vault; card: Card | null }) {
       const saved = await (isDraft ? act<Card>(`/cards/${card.id}/confirm`, 'POST', body)
         : card ? act<Card>(`/cards/${card.id}`, 'PATCH', body)
         : act<Card>('/cards', 'POST', body))
+      const dropped = (saved as Card & { marks_dropped?: number }).marks_dropped
+      if (dropped) alert(`${dropped} keyword mark${dropped > 1 ? 's were' : ' was'} on text you changed and ${dropped > 1 ? 'have' : 'has'} been removed. Tap the words again to re-mark them.`)
       navigate(`/cards/${formatId(saved.number!, fmt)}`)
     } catch (err) {
       setError((err as Error).message)

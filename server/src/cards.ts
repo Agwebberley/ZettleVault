@@ -5,6 +5,7 @@ import { withUser } from './db.ts'
 import type { Tx } from './db.ts'
 import { fail, parse } from './http.ts'
 import type { AuthEnv } from './http.ts'
+import { syncKeywords } from './keywords.ts'
 import { removePhotos } from './photos.ts'
 import { loadFields } from './vault.ts'
 
@@ -92,6 +93,7 @@ cards.post('/cards', async (c) => {
       insert into cards ${tx(toRow(tx, { ...input, number, status: 'saved', entry_method: 'manual' }))}
       returning ${cardCols(tx)}`
     await saveLinks(tx, row as Card, input.links)
+    await syncKeywords(tx, row as Card)
     return row
   })
   return c.json(card, 201)
@@ -127,8 +129,9 @@ cards.patch('/cards/:id', async (c) => {
     const [row] = Object.keys(columns).length
       ? await tx`update cards set ${tx(toRow(tx, columns))} where id = ${c.req.param('id')} returning ${cardCols(tx)}`
       : await tx`select ${cardCols(tx)} from cards where id = ${c.req.param('id')}`
-    if (row) await saveLinks(tx, row as Card, links)
-    return row
+    if (!row) return null
+    await saveLinks(tx, row as Card, links)
+    return { ...row, marks_dropped: await syncKeywords(tx, row as Card) }
   })
   return card ? c.json(card) : fail(404, 'not found')
 })

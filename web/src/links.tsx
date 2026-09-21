@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { findRefs, formatId, matchRefs, parseId } from '../../shared/ids.ts'
+import { findRefs, formatId, parseId } from '../../shared/ids.ts'
 import type { IdFormat } from '../../shared/ids.ts'
 import { api } from './api.ts'
 import { Button, inputClass } from './ui.tsx'
@@ -13,25 +13,6 @@ export type CardLinks = {
 }
 export const useLinks = (cardId: string | undefined) =>
   useQuery({ queryKey: ['cards', 'links', cardId], queryFn: () => api<CardLinks>(`/cards/${cardId}/links`), enabled: !!cardId })
-
-// Card text with its confirmed references made tappable, exactly where they were written.
-export function LinkedText({ text, links, fmt }: { text: string; links: number[]; fmt: IdFormat }) {
-  const parts: (string | { label: string; number: number })[] = []
-  let at = 0
-  for (const m of matchRefs(text, fmt)) {
-    if (!links.includes(m.number)) continue
-    parts.push(text.slice(at, m.index), { label: text.slice(m.index, m.index + m.length), number: m.number })
-    at = m.index + m.length
-  }
-  parts.push(text.slice(at))
-  return (
-    <>
-      {parts.map((p, i) =>
-        typeof p === 'string' ? p : <Link key={i} to={`/cards/${formatId(p.number, fmt)}`} className="font-mono text-amber underline">{p.label}</Link>,
-      )}
-    </>
-  )
-}
 
 export function LinkLists({ data, fmt }: { data: CardLinks; fmt: IdFormat }) {
   const row = (number: number, title: string | null, exists: boolean) => (

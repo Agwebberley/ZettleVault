@@ -8,6 +8,7 @@ import { cardCols, nextNumber, saveLinks, toRow } from './cards.ts'
 import { sql, withUser } from './db.ts'
 import { fail, parse } from './http.ts'
 import type { AuthEnv } from './http.ts'
+import { syncKeywords } from './keywords.ts'
 import { photoPath, removePhotos, storePhoto } from './photos.ts'
 import { claudeScanner, toDraft } from './scan.ts'
 import type { Scanner, VaultConfig } from './scan.ts'
@@ -101,6 +102,7 @@ scans.post('/cards/:id/confirm', async (c) => {
       update cards set ${tx(toRow(tx, { ...input, number }))}, status = 'saved', scan_error = null, suggested_number = null
       where id = ${c.req.param('id')} and status = 'needs_review' returning ${cardCols(tx)}`
     if (row) await saveLinks(tx, row as Card, input.links)
+    if (row) await syncKeywords(tx, row as Card)
     return row
   })
   return card ? c.json(card) : fail(404, 'no draft with that id is waiting for review')

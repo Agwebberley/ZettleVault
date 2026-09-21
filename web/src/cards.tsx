@@ -5,7 +5,8 @@ import { formatId, parseId } from '../../shared/ids.ts'
 import { act, api, idFormat, useCards } from './api.ts'
 import type { Vault } from './api.ts'
 import { CardForm } from './card-form.tsx'
-import { LinkLists, LinkedText, useLinks } from './links.tsx'
+import { CardKeywords, MarkedText, toggleMark, useMarks } from './keywords.tsx'
+import { LinkLists, useLinks } from './links.tsx'
 import { Button, CardRow, Empty, LinkButton, Page, Photos, inputClass } from './ui.tsx'
 
 export function CardList({ vault }: { vault: Vault }) {
@@ -52,6 +53,7 @@ export function CardDetail({ vault }: { vault: Vault }) {
   const navigate = useNavigate()
   const { data: card } = useCardByNumber(vault)
   const { data: linked } = useLinks(card?.id)
+  const { data: marks = [] } = useMarks(card?.id)
   if (card === undefined) return null
   if (card === null) return <Page eyebrow="Card box" title="Not in the vault"><Empty>No card with that ID yet.</Empty></Page>
 
@@ -99,11 +101,13 @@ export function CardDetail({ vault }: { vault: Vault }) {
       <Photos card={card} />
       {card.transcription ? (
         <p className="mt-4 whitespace-pre-wrap rounded-2xl border border-line bg-card p-5 font-serif leading-relaxed">
-          <LinkedText text={card.transcription} links={linked?.links.map((l) => l.number) ?? []} fmt={idFormat(vault)} />
+          <MarkedText text={card.transcription} marks={marks} links={linked?.links.map((l) => l.number) ?? []} fmt={idFormat(vault)}
+            onToggle={(start, end) => act(`/cards/${card.id}/marks`, 'PUT', toggleMark(card.transcription!, marks, start, end).map((m) => ({ start: m.start, end: m.end, is_definition: m.is_definition })))} />
         </p>
       ) : (
         <Empty>No card text.</Empty>
       )}
+      {card.transcription && <CardKeywords marks={marks} />}
       {linked && <LinkLists data={linked} fmt={idFormat(vault)} />}
     </Page>
   )
