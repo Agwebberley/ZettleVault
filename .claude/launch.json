@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "server",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--env-file=.env", "--watch", "server/src/index.ts"],
+      "port": 3000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "web"],
+      "port": 5173
+    }
+  ]
+}

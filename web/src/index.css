@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+/* The prototype's look, which its author already likes: cream paper, forest ink, serif headings. */
+@theme {
+  --color-paper: #f5f1e8;
+  --color-card: #fffdf8;
+  --color-line: #ded6c7;
+  --color-ink: #28251f;
+  --color-muted: #716a5d;
+  --color-forest: #244638;
+  --color-forest-dark: #1b352a;
+  --color-amber: #7c572f;
+  --font-serif: Georgia, 'Times New Roman', serif;
+}
+
+body {
+  @apply bg-paper text-ink;
+}
+h1, h2 {
+  @apply font-serif text-forest;
+}
