@@ -1,0 +1,14 @@
+{
+  "name": "@zettlevault/server",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@hono/node-server": "^2.1.1",
+    "hono": "^4.13.8",
+    "openid-client": "^6.8.8",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2"
+  }
+}

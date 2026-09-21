@@ -1,0 +1,2 @@
+# shell scripts and Docker inputs run on Linux; CRLF breaks them
+* text=auto eol=lf

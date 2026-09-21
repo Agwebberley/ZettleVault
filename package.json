@@ -1,0 +1,24 @@
+{
+  "name": "zettlevault",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "db": "docker compose up -d postgres",
+    "migrate": "node --env-file=.env server/src/migrate.ts",
+    "invite": "node --env-file=.env server/src/invite.ts",
+    "dev:server": "node --env-file=.env --watch server/src/index.ts",
+    "dev:web": "npm run dev -w web",
+    "test": "npm run migrate && node --env-file=.env --test \"server/test/*.test.ts\"",
+    "typecheck": "tsc -p server && tsc -p web"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

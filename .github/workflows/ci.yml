@@ -1,0 +1,27 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_PASSWORD: ci, POSTGRES_DB: zettlevault }
+        ports: ["5433:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 10
+    env:
+      APP_DB_PASSWORD: ci-app
+      DATABASE_URL: postgres://app:ci-app@localhost:5433/zettlevault
+      MIGRATE_DATABASE_URL: postgres://postgres:ci@localhost:5433/zettlevault
+      PUBLIC_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: touch .env && npm test
+      - run: npm run build -w web

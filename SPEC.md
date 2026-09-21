@@ -82,7 +82,7 @@ nightly: pg_dump + photos ──rclone──> S3-compatible bucket (B2 or R2 fre
 - **Web**: React, Vite, Tailwind, TanStack Query. Prototype's visual language kept (cream `#f5f1e8`, forest `#244638`, serif headings). Camera: `getUserMedia` with a 3×5 guide; fallback `<input type="file" accept="image/*" capture="environment">`.
 - **No** queue, worker, cron-in-app, search service, or state library. Scan processing is an in-process promise; a startup sweep retries drafts stuck in `processing` > 2 min.
   `// ponytail: in-process jobs — fine for 2 users; move to a jobs table + worker if scans ever pile up.`
-- **Hosting**: Oracle Always Free ARM VM (Ubuntu), Docker Compose: `app`, `postgres:17`, `caddy`. Images built `linux/arm64` in GitHub Actions → GHCR → `ssh: docker compose pull && up -d`. Open 80/443 in **both** the Oracle security list and the host firewall (classic gotcha).
+- **Hosting**: Oracle Always Free ARM VM (Ubuntu), Docker Compose: `postgres:17`, one-shot `migrate` (the only container with owner credentials; also runs the invite CLI), `app`, `caddy`. Deploy = `scripts/deploy.sh` on the VM (`git pull && docker compose up -d --build`): builds natively on ARM, so no registry, no cross-compilation, no deploy secrets in GitHub. Server runs its `.ts` directly on Node 24 (type stripping) — no server build step. Open 80/443 in **both** the Oracle security list and the host firewall (classic gotcha).
 - **Costs**: VM $0 · backups $0 · AI ≲ $1/mo · domain ≈ $10/yr (needed for TLS + Google OAuth; a free DuckDNS name also works).
 
 ## 6. Data model (Postgres)
@@ -229,7 +229,7 @@ A future domain = a sibling module contributing its own field kind(s) and pages.
 
 ## 12. Operations
 
-- **Backup** (host cron, 03:00): `pg_dump -Fc` + `rclone sync` of photos → bucket; keep 30 dailies; heartbeat ping to healthchecks.io (alerts when a backup *doesn't* happen).
+- **Backup** (host cron, 03:00): `pg_dump -Fc` (verified readable) + `rclone copy` of photos → bucket (copy, not sync: an accidental local delete must not propagate); keep 30 dailies; heartbeat ping to healthchecks.io (alerts when a backup *doesn't* happen).
 - **Restore**: `scripts/restore.sh <date>` on a fresh VM = compose up + pg_restore + photo sync. **Rehearsed once before first real use**; this is also the answer to Oracle reclaiming an idle instance. External uptime ping doubles as keep-alive.
 - **Observability**: structured JSON logs (docker), `/healthz`, Sentry free tier (web + server), per-scan token usage logged.
 - **Targets**: list/search < 300 ms p95 at 10k cards; scan draft created < 2 s; AI fill tolerates ~15 s.
@@ -245,7 +245,7 @@ A future domain = a sibling module contributing its own field kind(s) and pages.
 6. R8 parser: ranges, book-only, garbage.
 7. R9 sanitizer on hostile/malformed model output.
 8. Export → restore round-trip equals original.
-Vitest against a real Postgres container; no mocks of the database.
+Node's built-in test runner against a real Postgres container; no mocks of the database. A catalog test fails if any table with a `user_id` column lacks RLS.
 
 ## 14. Milestones
 

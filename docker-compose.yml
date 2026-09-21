@@ -1,0 +1,54 @@
+# Dev: `npm run db` starts only postgres. Prod: `docker compose up -d --build` starts everything.
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: zettlevault
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432" # loopback only: local dev, or psql over an ssh tunnel
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zettlevault"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot, and the only container holding owner credentials.
+  # Also the entry point for the invite CLI (see README).
+  migrate:
+    build: .
+    command: node server/src/migrate.ts
+    environment:
+      MIGRATE_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/zettlevault
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://app:${APP_DB_PASSWORD}@postgres:5432/zettlevault
+      PUBLIC_URL: ${PUBLIC_URL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    depends_on: [app]
+
+volumes:
+  pgdata:
+  caddydata:
