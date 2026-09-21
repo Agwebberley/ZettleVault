@@ -27,7 +27,7 @@ export function ScriptureIndex() {
   )
 }
 
-type Chapter = { chapter: number | null; cards: { number: number; title: string | null; refs: string[] }[] }
+type Chapter = { chapter: number | null; cards: { number: number | null; devotion_id: string | null; title: string | null; refs: string[] }[] }
 
 export function ScriptureBook({ vault }: { vault: Vault }) {
   const { book = '' } = useParams()
@@ -41,9 +41,9 @@ export function ScriptureBook({ vault }: { vault: Vault }) {
             <h2 className="mb-2 text-lg font-semibold">{ch.chapter === null ? 'The whole book' : `Chapter ${ch.chapter}`}</h2>
             <ul className="space-y-2">
               {ch.cards.map((c) => (
-                <li key={c.number}>
-                  <Link to={`/cards/${formatId(c.number, fmt)}`} className="flex items-baseline gap-3 rounded-xl border border-line bg-card px-4 py-3 hover:border-forest">
-                    <span className="font-mono text-sm text-amber">{formatId(c.number, fmt)}</span>
+                <li key={c.devotion_id ?? c.number}>
+                  <Link to={c.number === null ? `/devotions#${c.devotion_id}` : `/cards/${formatId(c.number, fmt)}`} className="flex items-baseline gap-3 rounded-xl border border-line bg-card px-4 py-3 hover:border-forest">
+                    <span className="font-mono text-sm text-amber">{c.number === null ? '✎' : formatId(c.number, fmt)}</span>
                     <span className="flex-1 font-serif">{c.title || 'Untitled'}</span>
                     <span className="text-xs text-muted">{c.refs.join(' · ')}</span>
                   </Link>

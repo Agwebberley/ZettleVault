@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router'
 import { queryClient, useMe, useVault } from './api.ts'
 import { CardDetail, CardList, EditCard, NewCard } from './cards.tsx'
+import { Devotions } from './devotions.tsx'
 import { Browse, Home, SignIn, Welcome } from './home.tsx'
 import { Keyword, KeywordIndex } from './keywords.tsx'
 import './index.css'
@@ -37,6 +38,7 @@ function App() {
         <Route path="/inbox/:id" element={<Review vault={vault} />} />
         <Route path="/keywords" element={<KeywordIndex />} />
         <Route path="/keywords/:word" element={<Keyword vault={vault} />} />
+        <Route path="/devotions" element={<Devotions vault={vault} />} />
         <Route path="/scripture" element={<ScriptureIndex />} />
         <Route path="/scripture/:book" element={<ScriptureBook vault={vault} />} />
         <Route path="/browse/:key" element={<Browse vault={vault} />} />

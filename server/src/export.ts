@@ -48,7 +48,13 @@ exportRoutes.get('/export', async (c) => {
   const userId = c.get('userId')
   const [settings] = await sql`
     select email, id_base, id_width, layout_hint, ref_hint, bible_mode, translation from users where id = ${userId}`
-  const { types, fields, cards, links } = await withUser(userId, async (tx) => ({
+  // Everything the user made. Derived data (the scripture index, search vectors) is rebuilt from it, so it stays out.
+  const { types, fields, cards, links, keywords, marks, pins, devotions } = await withUser(userId, async (tx) => ({
+    keywords: await tx`select id, word, short_note, notes from keywords order by word`,
+    marks: await tx`select keyword_id, card_id, devotion_id, start_offset, end_offset, label, is_definition from keyword_marks order by card_id, devotion_id, start_offset`,
+    pins: await tx`select keyword_id, strongs_id from keyword_strongs order by keyword_id, created_at`,
+    devotions: await tx<{ id: string; date: string; scripture: string | null; content: string | null; subjects: string[] }[]>`
+      select id, date::text as date, scripture, content, subjects from devotions order by date, created_at`,
     links: await tx<{ from_card_id: string; to_number: number }[]>`select from_card_id, to_number from card_links order by to_number`,
     types: await tx<Type[]>`select id, name, position from card_types order by position`,
     fields: await loadFields(tx),
@@ -57,9 +63,16 @@ exportRoutes.get('/export', async (c) => {
   const id: IdFormat = { base: settings.id_base, width: settings.id_width }
 
   async function* entries() {
-    yield { name: 'vault.json', data: Buffer.from(JSON.stringify({ format: 1, settings, types, fields, cards, links }, null, 2)) }
+    yield { name: 'vault.json', data: Buffer.from(JSON.stringify({ format: 1, settings, types, fields, cards, links, keywords, keyword_marks: marks, keyword_strongs: pins, devotions }, null, 2)) }
     for (const card of cards)
       if (card.status === 'saved') yield { name: `cards/${formatId(card.number!, id)}.md`, data: Buffer.from(cardMarkdown(card, id, types, fields, links.filter((l) => l.from_card_id === card.id).map((l) => l.to_number))) }
+    for (const k of keywords)
+      if (k.notes || k.short_note) yield { name: `keywords/${k.word.replace(/[^\p{L}\p{N} _-]/gu, '_')}.md`, data: Buffer.from(`# ${k.word}\n\n${k.short_note ? `*${k.short_note}*\n\n` : ''}${k.notes ?? ''}\n`) }
+    for (const [i, d] of devotions.entries())
+      yield {
+        name: `devotions/${d.date}${devotions.findIndex((x) => x.date === d.date) === i ? '' : `-${i}`}.md`,
+        data: Buffer.from(['---', `date: "${d.date}"`, ...(d.scripture ? [`passage: ${JSON.stringify(d.scripture)}`] : []), `subjects: ${JSON.stringify(d.subjects)}`, '---', '', d.content ?? '', ''].join('\n')),
+      }
     for (const name of cards.flatMap((card) => [card.front_image, card.back_image]))
       if (name) {
         const data = await readFile(photoPath(userId, name)).catch(() => null) // a missing file must not sink the export

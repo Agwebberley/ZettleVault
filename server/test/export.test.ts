@@ -66,6 +66,9 @@ test('export holds the whole vault — json, markdown, photos — and only this 
   form.set('front', new File([await sharp({ create: { width: 40, height: 24, channels: 3, background: '#fff' } }).png().toBuffer()], 'f.png'))
   const draft = await (await req(a, 'POST', '/scans', form)).json()
 
+  await req(a, 'PUT', '/keywords/justification', { notes: 'Forensic, not transformative.' })
+  await req(a, 'POST', '/devotions', { date: '2026-09-21', scripture: 'Rom 8', content: 'Assurance.', subjects: ['assurance'] })
+
   const res = await req(a, 'GET', '/export')
   assert.equal(res.headers.get('content-type'), 'application/zip')
   const files = readZip(Buffer.from(await res.arrayBuffer()))
@@ -82,6 +85,10 @@ test('export holds the whole vault — json, markdown, photos — and only this 
   assert.ok(md.includes('line one\n  line two'))
   assert.ok(md.includes('Links: [[0007]] [[0A50]]'), md)
   assert.equal(vault.links.length, 2)
+  assert.ok(vault.keywords.some((k: any) => k.word === 'justification' && k.notes))
+  assert.equal(vault.devotions.length, 1)
+  assert.match(files.get('keywords/justification.md')!.toString(), /Forensic/)
+  assert.match(files.get('devotions/2026-09-21.md')!.toString(), /passage: "Rom 8"[\s\S]*Assurance\./)
   assert.ok(![...files.keys()].some((n) => n.startsWith('cards/') && n !== 'cards/0A4F.md')) // no markdown for unconfirmed drafts
   assert.equal((await sharp(files.get(`photos/${draft.front_image}`)!).metadata()).format, 'jpeg')
 

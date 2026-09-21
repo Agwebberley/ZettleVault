@@ -164,6 +164,7 @@ function Webster({ text }: { text: string }) {
 type KeywordPage = {
   strongs: Strongs[]
   webster: string | null
+  devotions: { id: string; date: string; scripture: string | null; excerpts: { mark_id: string; is_definition: boolean; text: string }[] }[]
   keyword: { word: string; short_note: string | null; notes: string | null }
   cards: { number: number; title: string | null; excerpts: { mark_id: string; is_definition: boolean; text: string }[] }[]
 }
@@ -224,6 +225,24 @@ export function Keyword({ vault }: { vault: Vault }) {
           </ul>
           {data.cards.length === 0 && <Empty>No card uses this keyword yet.</Empty>}
         </section>
+
+        {data.devotions.length > 0 && (
+          <section>
+            <h2 className="mb-2 text-xl font-semibold">In your devotions</h2>
+            <ul className="space-y-3">
+              {data.devotions.map((d) => (
+                <li key={d.id} className="rounded-2xl border border-line bg-card p-4">
+                  <Link to={`/devotions#${d.id}`} className="flex gap-3 hover:underline">
+                    <span className="font-serif">{new Date(`${d.date}T00:00:00`).toLocaleDateString(undefined, { dateStyle: 'long' })}</span>
+                    <span className="text-sm text-amber">{d.scripture}</span>
+                  </Link>
+                  {d.excerpts.map((x) => <blockquote key={x.mark_id} className="mt-2 border-l-2 border-line pl-3 font-serif text-sm whitespace-pre-wrap">{x.text}</blockquote>)}
+                  {d.excerpts.length === 0 && <p className="mt-1 text-sm text-muted">Listed as a subject.</p>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {vault.settings.bible_mode && <OriginalWords word={data.keyword.word} pinned={data.strongs} />}
         {data.webster && <Webster text={data.webster} />}

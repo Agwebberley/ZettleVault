@@ -87,6 +87,7 @@ export function Home({ vault }: { vault: Vault }) {
       />
       <nav className="mb-6 flex flex-wrap gap-2" aria-label="Browse">
         {vault.settings.bible_mode && <Link to="/scripture" className="rounded-full border border-forest bg-card px-3 py-1 text-sm text-forest hover:bg-paper">Scripture</Link>}
+        {vault.settings.bible_mode && <Link to="/devotions" className="rounded-full border border-forest bg-card px-3 py-1 text-sm text-forest hover:bg-paper">Devotions</Link>}
         {browsable.map((f) => (
           <Link key={f.key} to={`/browse/${f.key}`} className="rounded-full border border-line bg-card px-3 py-1 text-sm hover:border-forest">{f.label}</Link>
         ))}
