@@ -4,5 +4,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 git pull --ff-only
+mkdir -p data/photos
 docker compose up -d --build --remove-orphans
 docker image prune -f

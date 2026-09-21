@@ -14,6 +14,7 @@ if [ ! -f "$src" ]; then
   src="backups/db-$src.dump"
 fi
 
+mkdir -p data/photos
 docker compose up -d --wait postgres
 docker compose run --rm migrate   # creates the app role that the dump's grants refer to
 docker compose stop app

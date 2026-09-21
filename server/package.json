@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
     "@hono/node-server": "^2.1.1",
     "hono": "^4.13.8",
     "openid-client": "^6.8.8",
     "postgres": "^3.4.9",
+    "sharp": "^0.35.4",
     "zod": "^4.6.5"
   },
   "devDependencies": {

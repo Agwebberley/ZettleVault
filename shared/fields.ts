@@ -57,7 +57,7 @@ export const CardInput = z
   })
   .partial()
 export type Card = {
-  id: string; number: number | null; status: 'processing' | 'needs_review' | 'saved'; type_id: string | null
+  id: string; number: number | null; suggested_number: number | null; status: 'processing' | 'needs_review' | 'saved'; type_id: string | null
   title: string | null; date: string | null; meta: Meta; extra: { label: string; value: string }[]
   transcription: string | null; front_image: string | null; back_image: string | null
   entry_method: 'scan' | 'manual'; scan_error: string | null; created_at: string; updated_at: string

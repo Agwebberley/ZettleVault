@@ -33,7 +33,7 @@ with the `own_rows` policy (copy the loop at the bottom of `001_init.sql`); a te
 3. On the VM: install Docker and rclone, clone this repo, create `.env` with
    `PUBLIC_URL=https://<domain>`, `DOMAIN=<domain>`, real passwords, the Google credentials,
    and `RCLONE_REMOTE` (e.g. `b2:zettlevault-backups`, after `rclone config`).
-4. `docker compose up -d --build` — Caddy gets the certificate on first request.
+4. `scripts/deploy.sh` (first run too: it creates `data/photos` with the right owner) — Caddy gets the certificate on first request.
 5. Invite yourself: `docker compose run --rm migrate node server/src/invite.ts you@gmail.com`
 6. Cron (`crontab -e`): `0 3 * * * /home/ubuntu/ZettleVault/scripts/backup.sh >> /home/ubuntu/backup.log 2>&1`
    Set `HEALTHCHECK_URL` to a healthchecks.io check so a *missing* backup alerts you.

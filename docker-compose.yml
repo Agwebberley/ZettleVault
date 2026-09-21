@@ -35,6 +35,11 @@ services:
       PUBLIC_URL: ${PUBLIC_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      SCAN_MODEL: ${SCAN_MODEL:-claude-haiku-4-5}
+      PHOTOS_DIR: /data/photos
+    volumes:
+      - ./data/photos:/data/photos # bind mount: backup.sh copies it off the machine
     depends_on:
       migrate: { condition: service_completed_successfully }
 

@@ -5,13 +5,14 @@ import { withUser } from './db.ts'
 import type { Tx } from './db.ts'
 import { fail, parse } from './http.ts'
 import type { AuthEnv } from './http.ts'
+import { removePhotos } from './photos.ts'
 import { loadFields } from './vault.ts'
 
 export const cards = new Hono<AuthEnv>()
 
 // date::text — a JS Date would drag a timezone into a calendar date
-const cols = (tx: Tx) => tx`
-  id, number, status, type_id, title, date::text as date, meta, extra, transcription,
+export const cardCols = (tx: Tx) => tx`
+  id, number, suggested_number, status, type_id, title, date::text as date, meta, extra, transcription,
   front_image, back_image, entry_method, scan_error, created_at, updated_at`
 
 async function mustFitFields(tx: Tx, meta: Meta | undefined) {
@@ -20,14 +21,14 @@ async function mustFitFields(tx: Tx, meta: Meta | undefined) {
 }
 
 // jsonb columns need explicit wrapping, or arrays would be sent as postgres arrays
-const toRow = (tx: Tx, { meta, extra, ...rest }: Partial<Card>) => ({
+export const toRow = (tx: Tx, { meta, extra, ...rest }: Partial<Card>) => ({
   ...rest,
   ...(meta && { meta: tx.json(meta) }),
   ...(extra && { extra: tx.json(extra) }),
 })
 
 // R1: one numbering decision at a time per vault; the unique index is the backstop.
-const nextNumber = async (tx: Tx, userId: string): Promise<number> => {
+export const nextNumber = async (tx: Tx, userId: string): Promise<number> => {
   await tx`select pg_advisory_xact_lock(hashtextextended(${userId}, 0))`
   const [{ n }] = await tx`select coalesce(max(number), -1) + 1 as n from cards`
   return n
@@ -38,8 +39,8 @@ cards.get('/cards', async (c) => {
   const limit = Math.min(Number(c.req.query('limit')) || 50, 200)
   const offset = Number(c.req.query('offset')) || 0
   const rows = await withUser(c.get('userId'), (tx) => tx`
-    select ${cols(tx)} from cards
-    where status = ${status}
+    select ${cardCols(tx)} from cards
+    where ${status === 'inbox' ? tx`status <> 'saved'` : tx`status = ${status}`}
       ${q ? tx`and search @@ websearch_to_tsquery('english', ${q})` : tx``}
       ${type_id ? tx`and type_id = ${type_id}` : tx``}
       ${number ? tx`and number = ${Number(number)}` : tx``}
@@ -55,7 +56,7 @@ cards.get('/cards/next-number', async (c) =>
 
 cards.get('/cards/random', async (c) => {
   const [card] = await withUser(c.get('userId'), (tx) => tx`
-    select ${cols(tx)} from cards where status = 'saved' order by random() limit 1`)
+    select ${cardCols(tx)} from cards where status = 'saved' order by random() limit 1`)
   return c.json(card ?? null)
 })
 
@@ -81,14 +82,14 @@ cards.post('/cards', async (c) => {
     const number = input.number ?? (await nextNumber(tx, userId))
     const [row] = await tx`
       insert into cards ${tx(toRow(tx, { ...input, number, status: 'saved', entry_method: 'manual' }))}
-      returning ${cols(tx)}`
+      returning ${cardCols(tx)}`
     return row
   })
   return c.json(card, 201)
 })
 
 cards.get('/cards/:id', async (c) => {
-  const [card] = await withUser(c.get('userId'), (tx) => tx`select ${cols(tx)} from cards where id = ${c.req.param('id')}`)
+  const [card] = await withUser(c.get('userId'), (tx) => tx`select ${cardCols(tx)} from cards where id = ${c.req.param('id')}`)
   return card ? c.json(card) : fail(404, 'not found')
 })
 
@@ -97,13 +98,17 @@ cards.patch('/cards/:id', async (c) => {
   if (!Object.keys(patch).length) fail(400, 'nothing to change')
   const card = await withUser(c.get('userId'), async (tx) => {
     await mustFitFields(tx, patch.meta)
-    const [row] = await tx`update cards set ${tx(toRow(tx, patch))} where id = ${c.req.param('id')} returning ${cols(tx)}`
+    const [row] = await tx`update cards set ${tx(toRow(tx, patch))} where id = ${c.req.param('id')} returning ${cardCols(tx)}`
     return row
   })
   return card ? c.json(card) : fail(404, 'not found')
 })
 
 cards.delete('/cards/:id', async (c) => {
-  const { count } = await withUser(c.get('userId'), (tx) => tx`delete from cards where id = ${c.req.param('id')}`)
-  return count ? c.json({ ok: true }) : fail(404, 'not found')
+  const userId = c.get('userId')
+  const [gone] = await withUser(userId, (tx) => tx`
+    delete from cards where id = ${c.req.param('id')} returning front_image, back_image`)
+  if (!gone) fail(404, 'not found')
+  await removePhotos(userId, [gone.front_image, gone.back_image]) // R10
+  return c.json({ ok: true })
 })
