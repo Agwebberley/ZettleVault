@@ -39,12 +39,24 @@ export async function act<T = unknown>(path: string, method: string, body?: unkn
   return result
 }
 
+export async function upload<T = unknown>(path: string, form: FormData): Promise<T> {
+  const res = await fetch('/api' + path, { method: 'POST', body: form })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new ApiError(res.status, data.error ?? res.statusText)
+  await queryClient.invalidateQueries()
+  return data
+}
+
 export const useMe = () =>
   useQuery({ queryKey: ['me'], queryFn: () => api<Me>('/me').catch((e) => (e.status === 401 ? null : Promise.reject(e))) })
 export const useVault = (enabled: boolean) => useQuery({ queryKey: ['vault'], queryFn: () => api<Vault>('/vault'), enabled })
-export const useCards = (params: Record<string, string>) => {
+export const useCards = (params: Record<string, string>, poll?: (cards: Card[] | undefined) => number | false) => {
   const qs = new URLSearchParams(params).toString()
-  return useQuery({ queryKey: ['cards', qs], queryFn: () => api<Card[]>(`/cards?${qs}`) })
+  return useQuery<Card[]>({
+    queryKey: ['cards', qs],
+    queryFn: () => api<Card[]>(`/cards?${qs}`),
+    refetchInterval: (q) => (poll ? poll(q.state.data) : false),
+  })
 }
 
 export const idFormat = (v: Vault): IdFormat => ({ base: v.settings.id_base, width: v.settings.id_width })

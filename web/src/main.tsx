@@ -6,6 +6,7 @@ import { queryClient, useMe, useVault } from './api.ts'
 import { CardDetail, CardList, EditCard, NewCard } from './cards.tsx'
 import { Browse, Home, SignIn, Welcome } from './home.tsx'
 import './index.css'
+import { Inbox, Review, Scan } from './scan.tsx'
 import { Settings } from './settings.tsx'
 
 function App() {
@@ -29,12 +30,17 @@ function App() {
         <Route path="/cards/new" element={<NewCard vault={vault} />} />
         <Route path="/cards/:number" element={<CardDetail vault={vault} />} />
         <Route path="/cards/:number/edit" element={<EditCard vault={vault} />} />
+        <Route path="/scan" element={<Scan />} />
+        <Route path="/inbox" element={<Inbox />} />
+        <Route path="/inbox/:id" element={<Review vault={vault} />} />
         <Route path="/browse/:key" element={<Browse vault={vault} />} />
         <Route path="/settings" element={<Settings vault={vault} me={me} />} />
         <Route path="*" element={<Home vault={vault} />} />
       </Routes>
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 flex justify-center gap-1 border-t border-line bg-card/95 p-2 backdrop-blur">
         <NavLink to="/" end className={tab}>Home</NavLink>
+        <NavLink to="/scan" className={tab}>Scan</NavLink>
+        <NavLink to="/inbox" className={tab}>Inbox</NavLink>
         <NavLink to="/cards" className={tab}>Cards</NavLink>
         <NavLink to="/settings" className={tab}>Settings</NavLink>
       </nav>

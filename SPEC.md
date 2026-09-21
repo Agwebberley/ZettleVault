@@ -177,9 +177,11 @@ Core (not field defs): number, title, date, type, transcription, photos.
 ### 8.1 Pipeline
 1. Client downsizes each photo (start: 1568 px long edge, JPEG ~85) and uploads front (+ back).
 2. Server stores photos, inserts card `status='processing'`, responds immediately (→ "Scan next").
-3. One Claude call, both images, structured JSON output built from the vault's config:
-   `{ id, title, date, type, fields{key→value}, unmapped[{label,value}], transcription, card_refs[] }`
-   Prompt carries: `layout_hint`, `ref_hint`, id base/width, type names, field defs (label, kind, aliases, type scope, options). Transcription preserves line breaks exactly.
+3. One Claude call, both images, structured JSON output:
+   `{ id, title, date, type, lines[{label, value, field}], transcription }` (`card_refs[]` joins in M2)
+   The model reports each metadata line **as written** plus a *suggested* field key. The server — not the model — places a line: only if that field exists in this vault or the written label is one of its labels/aliases, and the value fits the field's kind. Everything else becomes an unmapped line (R6). This keeps mapping deterministic and testable without the model, and structured outputs can't express "an object keyed by this vault's fields" anyway.
+   Prompt carries: `layout_hint`, `ref_hint`, id base/width, type names, field keys + labels + aliases. Transcription preserves line breaks exactly.
+   The ID read off the card is stored as `suggested_number`, not `number`, until the user confirms — a misread can't occupy a real card's ID.
 4. Validate (R9) → `needs_review`. Failure → `needs_review` with `scan_error`; photos are already safe.
 5. User confirms in the inbox → R1, R2, R5, R8 run → `saved`.
 

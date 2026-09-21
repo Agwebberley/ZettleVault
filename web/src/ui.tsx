@@ -86,3 +86,17 @@ export function CardRow({ card, vault }: { card: Card; vault: Vault }) {
 export const Empty = ({ children }: { children: ReactNode }) => (
   <p className="rounded-2xl border border-dashed border-line p-10 text-center text-muted">{children}</p>
 )
+
+export function Photos({ card }: { card: Pick<Card, 'front_image' | 'back_image'> }) {
+  const sides = [['Front', card.front_image], ['Back', card.back_image]].filter(([, name]) => name)
+  if (!sides.length) return null
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {sides.map(([label, name]) => (
+        <a key={name} href={'/api/photos/' + name} target="_blank" rel="noreferrer">
+          <img src={'/api/photos/' + name} alt={label + ' of the card'} className="w-full rounded-xl border border-line" />
+        </a>
+      ))}
+    </div>
+  )
+}

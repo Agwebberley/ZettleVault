@@ -52,7 +52,8 @@ ${fields.map((f) => `- ${f.key} — ${f.label}${f.aliases.length ? ` — ${f.ali
 }
 
 export const claudeScanner: Scanner = async (images, vault) => {
-  const client = new Anthropic() // ANTHROPIC_API_KEY; throws a clear error if unset
+  if (!process.env.ANTHROPIC_API_KEY) throw new Error('Scanning isn’t set up on this server yet (no ANTHROPIC_API_KEY).')
+  const client = new Anthropic()
   const response = await client.messages.parse({
     model: process.env.SCAN_MODEL ?? 'claude-haiku-4-5',
     max_tokens: 4096,
