@@ -21,11 +21,19 @@ async function mustFitFields(tx: Tx, meta: Meta | undefined) {
 }
 
 // jsonb columns need explicit wrapping, or arrays would be sent as postgres arrays
-export const toRow = (tx: Tx, { meta, extra, ...rest }: Partial<Card>) => ({
+export const toRow = (tx: Tx, { meta, extra, links: _links, ...rest }: Partial<Card> & { links?: number[] }) => ({
   ...rest,
   ...(meta && { meta: tx.json(meta) }),
   ...(extra && { extra: tx.json(extra) }),
 })
+
+// R5: replace a card's outgoing links. Targets are numbers, so a link to a card not yet in the vault is fine.
+export async function saveLinks(tx: Tx, card: { id: string; number: number | null }, links: number[] | undefined) {
+  if (!links) return
+  await tx`delete from card_links where from_card_id = ${card.id}`
+  const targets = [...new Set(links)].filter((n) => n !== card.number)
+  if (targets.length) await tx`insert into card_links ${tx(targets.map((to_number) => ({ from_card_id: card.id, to_number })))}`
+}
 
 // R1: one numbering decision at a time per vault; the unique index is the backstop.
 export const nextNumber = async (tx: Tx, userId: string): Promise<number> => {
@@ -83,9 +91,26 @@ cards.post('/cards', async (c) => {
     const [row] = await tx`
       insert into cards ${tx(toRow(tx, { ...input, number, status: 'saved', entry_method: 'manual' }))}
       returning ${cardCols(tx)}`
+    await saveLinks(tx, row as Card, input.links)
     return row
   })
   return c.json(card, 201)
+})
+
+// Both directions. Outgoing targets that aren't in the vault yet come back with exists: false.
+cards.get('/cards/:id/links', async (c) => {
+  const id = c.req.param('id')
+  const result = await withUser(c.get('userId'), async (tx) => ({
+    links: await tx`
+      select l.to_number as number, t.title, t.id is not null as exists
+      from card_links l left join cards t on t.number = l.to_number and t.status = 'saved'
+      where l.from_card_id = ${id} order by l.to_number`,
+    backlinks: await tx`
+      select f.number, f.title
+      from card_links l join cards f on f.id = l.from_card_id and f.status = 'saved'
+      where l.to_number = (select number from cards where id = ${id}) order by f.number`,
+  }))
+  return c.json(result)
 })
 
 cards.get('/cards/:id', async (c) => {
@@ -98,7 +123,11 @@ cards.patch('/cards/:id', async (c) => {
   if (!Object.keys(patch).length) fail(400, 'nothing to change')
   const card = await withUser(c.get('userId'), async (tx) => {
     await mustFitFields(tx, patch.meta)
-    const [row] = await tx`update cards set ${tx(toRow(tx, patch))} where id = ${c.req.param('id')} returning ${cardCols(tx)}`
+    const { links, ...columns } = patch
+    const [row] = Object.keys(columns).length
+      ? await tx`update cards set ${tx(toRow(tx, columns))} where id = ${c.req.param('id')} returning ${cardCols(tx)}`
+      : await tx`select ${cardCols(tx)} from cards where id = ${c.req.param('id')}`
+    if (row) await saveLinks(tx, row as Card, links)
     return row
   })
   return card ? c.json(card) : fail(404, 'not found')

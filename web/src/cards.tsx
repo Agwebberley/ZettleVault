@@ -5,6 +5,7 @@ import { formatId, parseId } from '../../shared/ids.ts'
 import { act, api, idFormat, useCards } from './api.ts'
 import type { Vault } from './api.ts'
 import { CardForm } from './card-form.tsx'
+import { LinkLists, LinkedText, useLinks } from './links.tsx'
 import { Button, CardRow, Empty, LinkButton, Page, Photos, inputClass } from './ui.tsx'
 
 export function CardList({ vault }: { vault: Vault }) {
@@ -50,6 +51,7 @@ function useCardByNumber(vault: Vault) {
 export function CardDetail({ vault }: { vault: Vault }) {
   const navigate = useNavigate()
   const { data: card } = useCardByNumber(vault)
+  const { data: linked } = useLinks(card?.id)
   if (card === undefined) return null
   if (card === null) return <Page eyebrow="Card box" title="Not in the vault"><Empty>No card with that ID yet.</Empty></Page>
 
@@ -96,10 +98,13 @@ export function CardDetail({ vault }: { vault: Vault }) {
       </dl>
       <Photos card={card} />
       {card.transcription ? (
-        <p className="mt-4 whitespace-pre-wrap rounded-2xl border border-line bg-card p-5 font-serif leading-relaxed">{card.transcription}</p>
+        <p className="mt-4 whitespace-pre-wrap rounded-2xl border border-line bg-card p-5 font-serif leading-relaxed">
+          <LinkedText text={card.transcription} links={linked?.links.map((l) => l.number) ?? []} fmt={idFormat(vault)} />
+        </p>
       ) : (
         <Empty>No card text.</Empty>
       )}
+      {linked && <LinkLists data={linked} fmt={idFormat(vault)} />}
     </Page>
   )
 }

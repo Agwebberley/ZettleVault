@@ -4,9 +4,10 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { isListKind } from '../../shared/fields.ts'
 import type { Card, FieldDef, Meta } from '../../shared/fields.ts'
-import { formatId, parseId } from '../../shared/ids.ts'
+import { findRefs, formatId, parseId } from '../../shared/ids.ts'
 import { act, api, idFormat } from './api.ts'
 import type { Vault } from './api.ts'
+import { LinkEditor, useLinks } from './links.tsx'
 import { Button, ErrorNote, Labeled, ListInput, Page, Photos, inputClass } from './ui.tsx'
 
 // R7: a field shows when it has no type scope, or the card's type is in it.
@@ -44,6 +45,11 @@ export function CardForm({ vault, card }: { vault: Vault; card: Card | null }) {
   const [extra, setExtra] = useState(card?.extra ?? [])
   const [placed, setPlaced] = useState(0) // remounts field inputs after a line is moved into one
   const [transcription, setTranscription] = useState(card?.transcription ?? '')
+  const existing = useLinks(card && !isDraft ? card.id : undefined)
+  const [links, setLinks] = useState<number[] | null>(card && !isDraft ? null : findRefs(card?.transcription ?? '', fmt))
+  useEffect(() => {
+    if (existing.data && links === null) setLinks(existing.data.links.map((l) => l.number))
+  }, [existing.data])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -86,6 +92,7 @@ export function CardForm({ vault, card }: { vault: Vault; card: Card | null }) {
       number, type_id: typeId, title: title.trim() || null, date: date || null,
       meta: Object.fromEntries(Object.entries(meta).filter(([, v]) => (Array.isArray(v) ? v.length : v.trim()))),
       extra: extra.filter((x) => x.label.trim() && x.value.trim()), transcription: transcription || null,
+      ...(links && { links }),
     }
     setSaving(true)
     try {
@@ -156,6 +163,8 @@ export function CardForm({ vault, card }: { vault: Vault; card: Card | null }) {
         <Labeled label="Card text" hint="Line breaks are kept exactly.">
           <textarea className={`${inputClass} font-serif`} rows={10} value={transcription} onChange={(e) => setTranscription(e.target.value)} />
         </Labeled>
+
+        {links && <LinkEditor links={links} onChange={setLinks} text={transcription} fmt={fmt} ownNumber={parseId(numberText, fmt)} />}
 
         <ErrorNote error={error} />
         <Button type="submit" className="w-full" disabled={saving}>{saving ? 'Saving…' : isDraft ? 'Confirm card' : card ? 'Update card' : 'Save card'}</Button>

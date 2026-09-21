@@ -59,7 +59,7 @@ test('export holds the whole vault — json, markdown, photos — and only this 
   await req(a, 'POST', '/cards', {
     number: 0x0a4f, title: 'Quotes: "grace" & café', date: '2026-02-03',
     meta: { person: 'Dr. Beals', tags: ['justification', 'Paul'] }, extra: [{ label: 'Room', value: 'Annex' }],
-    transcription: 'line one\n  line two',
+    transcription: 'line one\n  line two', links: [0x0a50, 7],
   })
   setScanner(async () => ({ id: '', title: 'A draft', date: '', type: '', lines: [], transcription: '' }))
   const form = new FormData()
@@ -80,6 +80,8 @@ test('export holds the whole vault — json, markdown, photos — and only this 
   assert.ok(md.includes('Tags: ["justification","Paul"]'))
   assert.ok(md.includes('Room: "Annex"'))
   assert.ok(md.includes('line one\n  line two'))
+  assert.ok(md.includes('Links: [[0007]] [[0A50]]'), md)
+  assert.equal(vault.links.length, 2)
   assert.ok(![...files.keys()].some((n) => n.startsWith('cards/') && n !== 'cards/0A4F.md')) // no markdown for unconfirmed drafts
   assert.equal((await sharp(files.get(`photos/${draft.front_image}`)!).metadata()).format, 'jpeg')
 

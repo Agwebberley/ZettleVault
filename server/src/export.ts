@@ -16,7 +16,7 @@ import { writeZip } from './zip.ts'
 type Type = { id: string; name: string }
 
 // Front-matter values are JSON, which is valid YAML and needs no escaping rules of its own.
-export function cardMarkdown(card: Card, id: IdFormat, types: Type[], fields: FieldDef[]) {
+export function cardMarkdown(card: Card, id: IdFormat, types: Type[], fields: FieldDef[], links: number[] = []) {
   const front: [string, unknown][] = [
     ['id', formatId(card.number!, id)],
     ['title', card.title],
@@ -35,6 +35,8 @@ export function cardMarkdown(card: Card, id: IdFormat, types: Type[], fields: Fi
     '',
     card.transcription ?? '',
     '',
+    // wiki links: file names are card IDs, so these resolve in Obsidian as cards arrive
+    ...(links.length ? [`Links: ${links.map((n) => `[[${formatId(n, id)}]]`).join(' ')}`, ''] : []),
     ...photos,
     '',
   ].join('\n')
@@ -46,7 +48,8 @@ exportRoutes.get('/export', async (c) => {
   const userId = c.get('userId')
   const [settings] = await sql`
     select email, id_base, id_width, layout_hint, ref_hint, bible_mode, translation from users where id = ${userId}`
-  const { types, fields, cards } = await withUser(userId, async (tx) => ({
+  const { types, fields, cards, links } = await withUser(userId, async (tx) => ({
+    links: await tx<{ from_card_id: string; to_number: number }[]>`select from_card_id, to_number from card_links order by to_number`,
     types: await tx<Type[]>`select id, name, position from card_types order by position`,
     fields: await loadFields(tx),
     cards: await tx<Card[]>`select ${cardCols(tx)} from cards order by number nulls last, created_at`,
@@ -54,9 +57,9 @@ exportRoutes.get('/export', async (c) => {
   const id: IdFormat = { base: settings.id_base, width: settings.id_width }
 
   async function* entries() {
-    yield { name: 'vault.json', data: Buffer.from(JSON.stringify({ format: 1, settings, types, fields, cards }, null, 2)) }
+    yield { name: 'vault.json', data: Buffer.from(JSON.stringify({ format: 1, settings, types, fields, cards, links }, null, 2)) }
     for (const card of cards)
-      if (card.status === 'saved') yield { name: `cards/${formatId(card.number!, id)}.md`, data: Buffer.from(cardMarkdown(card, id, types, fields)) }
+      if (card.status === 'saved') yield { name: `cards/${formatId(card.number!, id)}.md`, data: Buffer.from(cardMarkdown(card, id, types, fields, links.filter((l) => l.from_card_id === card.id).map((l) => l.to_number))) }
     for (const name of cards.flatMap((card) => [card.front_image, card.back_image]))
       if (name) {
         const data = await readFile(photoPath(userId, name)).catch(() => null) // a missing file must not sink the export

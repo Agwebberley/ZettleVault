@@ -3,7 +3,8 @@ import { Hono } from 'hono'
 import { readFile } from 'node:fs/promises'
 import { ZodError } from 'zod'
 import { CardInput, checkMeta } from '../../shared/fields.ts'
-import { cardCols, nextNumber, toRow } from './cards.ts'
+import type { Card } from '../../shared/fields.ts'
+import { cardCols, nextNumber, saveLinks, toRow } from './cards.ts'
 import { sql, withUser } from './db.ts'
 import { fail, parse } from './http.ts'
 import type { AuthEnv } from './http.ts'
@@ -99,6 +100,7 @@ scans.post('/cards/:id/confirm', async (c) => {
     const [row] = await tx`
       update cards set ${tx(toRow(tx, { ...input, number }))}, status = 'saved', scan_error = null, suggested_number = null
       where id = ${c.req.param('id')} and status = 'needs_review' returning ${cardCols(tx)}`
+    if (row) await saveLinks(tx, row as Card, input.links)
     return row
   })
   return card ? c.json(card) : fail(404, 'no draft with that id is waiting for review')

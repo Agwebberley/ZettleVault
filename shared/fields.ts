@@ -54,6 +54,7 @@ export const CardInput = z
     meta: z.record(z.string(), z.union([text, z.array(z.string().max(300)).max(100)])),
     extra: z.array(z.strictObject({ label, value: z.string().max(2000) })).max(50),
     transcription: text.nullable(),
+    links: z.array(z.number().int().min(0).max(2 ** 31 - 1)).max(200), // confirmed references to other cards, by number (R5)
   })
   .partial()
 export type Card = {
