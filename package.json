@@ -13,6 +13,7 @@
     "db": "docker compose up -d postgres",
     "migrate": "node --env-file=.env server/src/migrate.ts",
     "invite": "node --env-file=.env server/src/invite.ts",
+    "eval-scan": "node --env-file=.env server/src/eval-scan.ts",
     "dev:server": "node --env-file=.env --watch server/src/index.ts",
     "dev:web": "npm run dev -w web",
     "test": "npm run migrate && node --env-file=.env --test \"server/test/*.test.ts\"",

@@ -7,7 +7,7 @@ export type Settings = {
   bible_mode: boolean; translation: string
 }
 export type CardType = { id: string; name: string; position: number }
-export type Vault = { settings: Settings; types: CardType[]; fields: FieldDef[] }
+export type Vault = { settings: Settings; types: CardType[]; fields: FieldDef[]; usage: Record<string, number> }
 export type Me = { email: string; name: string | null }
 
 export const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 10_000 } } })

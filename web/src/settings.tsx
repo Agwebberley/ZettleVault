@@ -84,6 +84,12 @@ export function Settings({ vault, me }: { vault: Vault; me: Me }) {
         </section>
 
         <section className="space-y-3">
+          <h2 className="text-xl font-semibold">Your data</h2>
+          <p className="text-sm text-muted">Everything in one zip: a complete vault.json, one Markdown file per card (opens in Obsidian), and your photos.</p>
+          <a href="/api/export" className="inline-block rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium hover:bg-paper">Export everything</a>
+        </section>
+
+        <section className="space-y-3">
           <h2 className="text-xl font-semibold">Account</h2>
           <p className="text-sm text-muted">Signed in as {me.email}</p>
           <div className="flex gap-2">
@@ -120,7 +126,7 @@ function FieldEditor({ field, vault, run }: { field: FieldDef; vault: Vault; run
   return (
     <details className="rounded-xl border border-line bg-card px-4 py-3">
       <summary className="cursor-pointer">
-        <strong>{field.label}</strong> <span className="text-sm text-muted">· {kindNames[field.kind]}{field.aliases.length > 0 && ` · also “${field.aliases.join('”, “')}”`}</span>
+        <strong>{field.label}</strong> <span className="text-sm text-muted">· {kindNames[field.kind]} · on {vault.usage[field.key] ?? 0} card{vault.usage[field.key] === 1 ? '' : 's'}{field.aliases.length > 0 && ` · also “${field.aliases.join('”, “')}”`}</span>
       </summary>
       <div className="mt-3 space-y-3">
         <Labeled label="Label"><input className={inputClass} defaultValue={field.label} onBlur={(e) => e.target.value.trim() && e.target.value !== field.label && patch({ label: e.target.value })} /></Labeled>

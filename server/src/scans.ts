@@ -17,7 +17,7 @@ const DAILY_SCANS = 100
 let scanner: Scanner = claudeScanner
 export const setScanner = (s: Scanner) => void (scanner = s) // tests
 
-async function loadConfig(userId: string): Promise<VaultConfig> {
+export async function loadConfig(userId: string): Promise<VaultConfig> {
   const [s] = await sql`select id_base, id_width, layout_hint, ref_hint from users where id = ${userId}`
   const [types, fields] = await withUser(userId, (tx) => Promise.all([tx<{ id: string; name: string }[]>`select id, name from card_types`, loadFields(tx)]))
   return { id: { base: s.id_base, width: s.id_width }, layout_hint: s.layout_hint, ref_hint: s.ref_hint, types, fields }

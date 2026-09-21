@@ -8,6 +8,7 @@ import { SESSION_DAYS, sessionUser, signIn, signOut, signOutEverywhere } from '.
 import { cards } from './cards.ts'
 import { sql } from './db.ts'
 import { env } from './env.ts'
+import { exportRoutes } from './export.ts'
 import { dbErrorResponse } from './http.ts'
 import type { AuthEnv } from './http.ts'
 import { scans } from './scans.ts'
@@ -110,6 +111,7 @@ app.post('/api/logout-all', async (c) => {
 })
 
 app.route('/api', vault)
+app.route('/api', exportRoutes)
 app.route('/api', scans) // before cards: /cards/:id/confirm and /photos must not fall into /cards/:id
 app.route('/api', cards)
 app.all('/api/*', (c) => c.json({ error: 'not found' }, 404))

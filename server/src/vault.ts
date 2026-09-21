@@ -17,10 +17,15 @@ vault.get('/vault', async (c) => {
   const userId = c.get('userId')
   const [settings] = await sql`
     select id_base, id_width, layout_hint, ref_hint, bible_mode, translation from users where id = ${userId}`
-  const [types, fields] = await withUser(userId, (tx) =>
-    Promise.all([tx`select id, name, position from card_types order by position, name`, loadFields(tx)]),
+  const rows = await withUser(userId, (tx) =>
+    Promise.all([
+      tx`select id, name, position from card_types order by position, name`,
+      loadFields(tx),
+      tx`select key, count(*)::int as count from cards, jsonb_object_keys(meta) key where status = 'saved' group by key`,
+    ]),
   )
-  return c.json({ settings, types, fields })
+  const [types, fields, used] = rows
+  return c.json({ settings, types, fields, usage: Object.fromEntries(used.map((u) => [u.key, u.count])) })
 })
 
 vault.patch('/settings', async (c) => {
